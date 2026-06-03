@@ -1,0 +1,1 @@
+Analyze the current TrustedWay Mobility codebase. Find architectural risks, missing MVP pieces, and the simplest next implementation steps. Focus on booking liquidity, carrier onboarding, trust layer, and Telegram UX.

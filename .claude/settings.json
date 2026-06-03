@@ -1,0 +1,11 @@
+{
+  "projectName": "TrustedWay Mobility",
+  "language": "uk",
+  "rules": [
+    "Keep MVP simple and Telegram-first.",
+    "Do not build mobile apps before marketplace liquidity exists.",
+    "Prefer safe, incremental changes.",
+    "Always run typecheck after code changes.",
+    "Trust layer is the product core: verification, ratings, support, booking history."
+  ]
+}
