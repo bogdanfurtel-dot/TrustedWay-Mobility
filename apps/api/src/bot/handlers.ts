@@ -1,6 +1,6 @@
 import { env } from '../utils/env';
 import { prisma } from '../utils/prisma';
-import { sendMessage } from './telegramClient';
+import { sendMessage, answerCallbackQuery } from './telegramClient';
 import { upsertTelegramUser } from '../services/userService';
 import { buildTelegramShareText, buildTripDeepLink, searchTrips } from '../services/tripService';
 import { createBooking } from '../services/bookingService';
@@ -16,7 +16,66 @@ function looksLikePhone(text: string): boolean {
   return /^\+?[\d\s\-()]{7,15}$/.test(text);
 }
 
+async function handleCallbackQuery(cq: any) {
+  const { id, data, from } = cq;
+  if (!data) return answerCallbackQuery(id);
+
+  const underscoreIdx = data.indexOf('_');
+  const action = data.slice(0, underscoreIdx);
+  const bookingId = data.slice(underscoreIdx + 1);
+
+  if (action !== 'confirm' && action !== 'reject') return answerCallbackQuery(id);
+
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { trip: true, user: true },
+  });
+
+  if (!booking || booking.status !== 'PENDING') {
+    return answerCallbackQuery(id, 'Це бронювання вже оброблено.');
+  }
+
+  if (action === 'confirm') {
+    await prisma.booking.update({ where: { id: bookingId }, data: { status: 'CONFIRMED' } });
+    await answerCallbackQuery(id, 'Підтверджено ✅');
+    await sendMessage(
+      Number(from.id),
+      `✅ Бронювання <code>${bookingId}</code> підтверджено.`
+    );
+    if (booking.user.telegramId) {
+      await sendMessage(
+        Number(booking.user.telegramId),
+        `✅ Перевізник підтвердив ваше бронювання!\n` +
+        `🗺 ${booking.trip.fromCity} → ${booking.trip.toCity}\n` +
+        `Зв'яжіться з перевізником для уточнення деталей.`
+      );
+    }
+  } else {
+    await prisma.$transaction([
+      prisma.booking.update({ where: { id: bookingId }, data: { status: 'CANCELLED' } }),
+      prisma.trip.update({ where: { id: booking.tripId }, data: { availableSeats: { increment: booking.seats } } }),
+    ]);
+    await answerCallbackQuery(id, 'Відхилено');
+    await sendMessage(
+      Number(from.id),
+      `❌ Бронювання <code>${bookingId}</code> відхилено. Місця повернено.`
+    );
+    if (booking.user.telegramId) {
+      await sendMessage(
+        Number(booking.user.telegramId),
+        `❌ Перевізник відхилив ваше бронювання.\n` +
+        `Рейс: ${booking.trip.fromCity} → ${booking.trip.toCity}\n` +
+        `Місця звільнено. Пошукай інший рейс: <code>пошук Місто1 Місто2</code>`
+      );
+    }
+  }
+}
+
 export async function handleTelegramUpdate(update: any) {
+  if (update.callback_query) {
+    return handleCallbackQuery(update.callback_query);
+  }
+
   const message = update.message;
   if (!message?.chat?.id) return;
 
@@ -50,7 +109,7 @@ export async function handleTelegramUpdate(update: any) {
       clearSession(chatId);
 
       await sendMessage(chatId,
-        `Бронювання підтверджено ✅\nID: <code>${booking.id}</code>\nПеревізник отримав сповіщення.`,
+        `Заявку надіслано ✅\nID: <code>${booking.id}</code>\nОчікуй підтвердження від перевізника.`,
         { reply_markup: { remove_keyboard: true } }
       );
 
@@ -66,7 +125,15 @@ export async function handleTelegramUpdate(update: any) {
           `🧑 Ім'я: ${from.first_name ?? '—'}\n` +
           `📞 Телефон: ${phone}\n` +
           `💺 Місць: ${seats}\n` +
-          `🗺 Рейс: <code>${tripId}</code>`
+          `🗺 Рейс: <code>${tripId}</code>`,
+          {
+            reply_markup: {
+              inline_keyboard: [[
+                { text: '✅ Підтвердити', callback_data: `confirm_${booking.id}` },
+                { text: '❌ Відхилити', callback_data: `reject_${booking.id}` },
+              ]],
+            },
+          }
         );
       }
     } catch (err: any) {

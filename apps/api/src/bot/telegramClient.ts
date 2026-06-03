@@ -12,3 +12,10 @@ export async function sendMessage(chatId: number | string, text: string, extra?:
     ...extra,
   });
 }
+
+export async function answerCallbackQuery(callbackQueryId: string, text?: string) {
+  await axios.post(`${baseUrl}/answerCallbackQuery`, {
+    callback_query_id: callbackQueryId,
+    ...(text ? { text } : {}),
+  });
+}
