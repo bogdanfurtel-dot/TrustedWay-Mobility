@@ -223,7 +223,7 @@ export async function handleTelegramUpdate(update: any) {
     const [, fromCity, toCity] = text.split(' ');
     const trips = await searchTrips(fromCity, toCity);
     if (!trips.length) return sendMessage(chatId, 'Поки немає активних рейсів за цим напрямком.');
-    return sendMessage(chatId, trips.map((t) =>
+    return sendMessage(chatId, trips.map((t: (typeof trips)[number]) =>
       `🚐 <b>${t.fromCity} → ${t.toCity}</b>\n` +
       `💶 ${t.price} ${t.currency} · 💺 ${t.availableSeats}\n` +
       `⭐ ${t.carrier.publicName} · tier: ${t.carrier.tier}\n` +

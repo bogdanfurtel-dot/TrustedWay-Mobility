@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '../utils/prisma';
 
 export async function createBooking(input: {
@@ -7,7 +8,7 @@ export async function createBooking(input: {
   passengerName?: string;
   passengerPhone?: string;
 }) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const trip = await tx.trip.findUnique({ where: { id: input.tripId } });
     if (!trip || trip.status !== 'ACTIVE') throw new Error('Trip is not available');
     if (trip.availableSeats < input.seats) throw new Error('Not enough seats');
