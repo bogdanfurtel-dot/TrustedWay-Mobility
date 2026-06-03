@@ -16,7 +16,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "latest",
+    "@prisma/client": "^6.0.0",
     "axios": "latest",
     "cors": "latest",
     "dotenv": "latest",
@@ -30,7 +30,7 @@
     "@types/express": "latest",
     "@types/morgan": "latest",
     "@types/node": "latest",
-    "prisma": "latest",
+    "prisma": "^6.0.0",
     "tsx": "latest",
     "typescript": "latest"
   }
