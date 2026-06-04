@@ -9,6 +9,13 @@ import { tripsRouter } from './routes/trips';
 import { carriersRouter } from './routes/carriers';
 import { adminRouter } from './routes/admin';
 
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+
 const app = express();
 
 app.use(helmet());
@@ -24,11 +31,15 @@ if (process.env.NODE_ENV !== 'development') {
   app.post('/telegram/webhook/:secret', async (req, res, next) => {
     try {
       if (req.params.secret !== env.WEBHOOK_SECRET) {
+        console.warn('[webhook] rejected — wrong secret');
         return res.status(403).json({ ok: false, error: 'Forbidden' });
       }
+      const updateType = Object.keys(req.body ?? {}).find(k => k !== 'update_id') ?? 'unknown';
+      console.log(`[webhook] update_id=${req.body?.update_id} type=${updateType}`);
       await handleTelegramUpdate(req.body);
       res.json({ ok: true });
     } catch (error) {
+      console.error('[webhook] handler error:', error);
       next(error);
     }
   });
