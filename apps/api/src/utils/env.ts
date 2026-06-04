@@ -8,7 +8,7 @@ const EnvSchema = z.object({
   APP_URL: z.string().default('http://localhost:3001'),
   WEBHOOK_SECRET: z.string().min(3),
   TELEGRAM_BOT_TOKEN: z.string().min(5),
-  TELEGRAM_BOT_USERNAME: z.string().default('TrustedWayBot'),
+  TELEGRAM_BOT_USERNAME: z.string().min(1),
   DATABASE_URL: z.string().optional(),
 });
 

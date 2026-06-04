@@ -150,6 +150,7 @@ async function finishTripCreation(chatId: number, userId: string, data: {
   const shareText = buildTelegramShareText({
     fromCity: data.from, toCity: data.to, departureAt: trip.departureAt,
     price: trip.price, currency: trip.currency, availableSeats: trip.availableSeats, deepLink,
+    notes: data.notes,
   });
 
   return sendMessage(chatId,
@@ -202,6 +203,7 @@ async function handleCallbackQuery(cq: any) {
       const shareText = buildTelegramShareText({
         fromCity: trip.fromCity, toCity: trip.toCity, departureAt: trip.departureAt,
         price: trip.price, currency: trip.currency, availableSeats: trip.availableSeats, deepLink,
+        notes: trip.notes ?? undefined,
       });
       return sendMessage(chatId, `📢 Текст для Telegram-груп:\n\n${shareText}`);
     }
@@ -230,6 +232,7 @@ async function handleCallbackQuery(cq: any) {
       const shareText = buildTelegramShareText({
         fromCity: trip.fromCity, toCity: trip.toCity, departureAt: trip.departureAt,
         price: trip.price, currency: trip.currency, availableSeats: trip.availableSeats, deepLink,
+        notes: trip.notes ?? undefined,
       });
       await answerCallbackQuery(id);
       return sendMessage(chatId, `📢 Текст для Telegram-груп:\n\n${shareText}`);

@@ -51,20 +51,26 @@ export function buildTelegramShareText(args: {
   currency: string;
   availableSeats: number;
   deepLink: string;
+  notes?: string;
 }) {
   const date = args.departureAt.toLocaleString('uk-UA', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 
-  return [
+  const lines = [
     `🚐 ${args.fromCity} → ${args.toCity}`,
     `📅 Виїзд: ${date}`,
     `💶 Ціна: ${args.price} ${args.currency}`,
     `💺 Вільних місць: ${args.availableSeats}`,
+  ];
+
+  if (args.notes) lines.push(`📝 Опис: ${args.notes}`);
+
+  lines.push(
     '',
-    '✅ Бронювання через TrustedWay',
+    `<a href="${args.deepLink}">✅ Бронювання через TrustedWay</a>`,
     '🔒 Перевізник проходить перевірку та збирає рейтинг',
-    '',
-    `Забронювати місце: ${args.deepLink}`,
-  ].join('\n');
+  );
+
+  return lines.join('\n');
 }
