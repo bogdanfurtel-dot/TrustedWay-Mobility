@@ -47,7 +47,7 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
 const server = app.listen(env.PORT, () => {
   console.log(`TrustedWay Mobility API running on port ${env.PORT}`);
   if (process.env.NODE_ENV === 'development') {
-    startPolling();
+    startPolling().catch(console.error);
   }
 });
 
