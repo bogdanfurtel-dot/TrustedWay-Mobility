@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx watch apps/api/src/index.ts",
     "start": "node dist/apps/api/src/index.js",
-    "build": "DATABASE_URL=postgresql://build:build@localhost/build prisma generate && tsc -p tsconfig.json",
+    "build": "node scripts/build.js",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -30,6 +30,7 @@
     "@types/express": "latest",
     "@types/morgan": "latest",
     "@types/node": "latest",
+    "cross-env": "^10.1.0",
     "prisma": "^6.0.0",
     "tsx": "latest",
     "typescript": "latest"
