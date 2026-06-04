@@ -2,7 +2,7 @@ import { env } from '../utils/env';
 import { prisma } from '../utils/prisma';
 import { sendMessage, answerCallbackQuery } from './telegramClient';
 import { upsertTelegramUser } from '../services/userService';
-import { buildTelegramShareText, buildTripDeepLink, searchTrips } from '../services/tripService';
+import { buildTelegramShareText, buildTripDeepLink, generateShortCode, searchTrips } from '../services/tripService';
 import { createBooking } from '../services/bookingService';
 import { getSession, setSession, clearSession } from './session';
 
@@ -129,6 +129,7 @@ async function finishTripCreation(chatId: number, userId: string, data: {
     await prisma.carrier.update({ where: { id: carrier.id }, data: { phone: data.phone } });
   }
 
+  const shortCode = generateShortCode();
   const trip = await prisma.trip.create({
     data: {
       carrierId: carrier.id,
@@ -141,10 +142,11 @@ async function finishTripCreation(chatId: number, userId: string, data: {
       currency: 'EUR',
       status: 'ACTIVE',
       notes: data.notes,
+      shortCode,
     },
   });
 
-  const deepLink = buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.id, carrier.id);
+  const deepLink = buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, shortCode);
   const shareText = buildTelegramShareText({
     fromCity: data.from, toCity: data.to, departureAt: trip.departureAt,
     price: trip.price, currency: trip.currency, availableSeats: trip.availableSeats, deepLink,
@@ -194,7 +196,9 @@ async function handleCallbackQuery(cq: any) {
         });
       }
       const trip = carrier.trips[0];
-      const deepLink = buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.id, carrier.id);
+      const deepLink = trip.shortCode
+        ? buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.shortCode)
+        : `https://t.me/${env.TELEGRAM_BOT_USERNAME}?start=trip_${trip.id}`;
       const shareText = buildTelegramShareText({
         fromCity: trip.fromCity, toCity: trip.toCity, departureAt: trip.departureAt,
         price: trip.price, currency: trip.currency, availableSeats: trip.availableSeats, deepLink,
@@ -220,7 +224,9 @@ async function handleCallbackQuery(cq: any) {
       const tripId = parts[1];
       const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { carrier: true } });
       if (!trip) return answerCallbackQuery(id, 'Рейс не знайдено.');
-      const deepLink = buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.id, trip.carrierId);
+      const deepLink = trip.shortCode
+        ? buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.shortCode)
+        : `https://t.me/${env.TELEGRAM_BOT_USERNAME}?start=trip_${trip.id}`;
       const shareText = buildTelegramShareText({
         fromCity: trip.fromCity, toCity: trip.toCity, departureAt: trip.departureAt,
         price: trip.price, currency: trip.currency, availableSeats: trip.availableSeats, deepLink,
@@ -476,8 +482,21 @@ export async function handleTelegramUpdate(update: any) {
     return finishTripCreation(chatId, user.id, { from: fc, to, departureAt, price, seats, notes, phone });
   }
 
-  // ── /start trip deep link ─────────────────────────────────────────────────
+  // ── /start deep links ─────────────────────────────────────────────────────
   const payload = parseStartPayload(text);
+
+  // new short format: t_<shortCode>
+  if (payload?.startsWith('t_')) {
+    const shortCode = payload.slice(2);
+    const trip = await prisma.trip.findUnique({ where: { shortCode }, include: { carrier: true } });
+    if (!trip || trip.status !== 'ACTIVE') return sendMessage(chatId, 'Рейс не знайдено або він вже неактивний.');
+    return sendMessage(chatId,
+      `🚐 <b>${trip.fromCity} → ${trip.toCity}</b>\n📅 ${fmtDate(trip.departureAt)}\n💶 ${trip.price} ${trip.currency}\n💺 Вільних місць: ${trip.availableSeats}\n🚗 Перевізник: ${trip.carrier.publicName}`,
+      { reply_markup: { inline_keyboard: [[{ text: '🎫 Забронювати 1 місце', callback_data: `book_${trip.id}_1` }]] } }
+    );
+  }
+
+  // legacy format: trip_<tripId>_carrier_<carrierId>
   if (payload?.startsWith('trip_')) {
     const tripId = payload.split('_')[1];
     const trip = await prisma.trip.findUnique({ where: { id: tripId }, include: { carrier: true } });
@@ -527,10 +546,11 @@ export async function handleTelegramUpdate(update: any) {
     if (isNaN(seats) || seats < 1 || seats > 100) return sendMessage(chatId, 'Місць: 1–100.');
     const carrier = await prisma.carrier.findUnique({ where: { userId: user.id } });
     if (!carrier) return sendMessage(chatId, 'Спочатку відкрий /carrier і зареєструйся.');
+    const sc = generateShortCode();
     const trip = await prisma.trip.create({
-      data: { carrierId: carrier.id, fromCity, toCity, departureAt, price, totalSeats: seats, availableSeats: seats, currency: 'EUR', status: 'ACTIVE' },
+      data: { carrierId: carrier.id, fromCity, toCity, departureAt, price, totalSeats: seats, availableSeats: seats, currency: 'EUR', status: 'ACTIVE', shortCode: sc },
     });
-    const deepLink = buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.id, carrier.id);
+    const deepLink = buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, sc);
     const shareText = buildTelegramShareText({ fromCity, toCity, departureAt: trip.departureAt, price: trip.price, currency: trip.currency, availableSeats: trip.availableSeats, deepLink });
     return sendMessage(chatId, `Рейс створено ✅\n\n${shareText}`);
   }

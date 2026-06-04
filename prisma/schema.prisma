@@ -94,6 +94,7 @@ model Trip {
   availableSeats Int
   status         TripStatus @default(ACTIVE)
   notes          String?
+  shortCode      String?    @unique
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 

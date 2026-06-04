@@ -21,7 +21,9 @@ tripsRouter.get('/:id/share', async (req, res, next) => {
   try {
     const trip = await prisma.trip.findUnique({ where: { id: req.params.id }, include: { carrier: true } });
     if (!trip) return res.status(404).json({ ok: false, error: 'Trip not found' });
-    const deepLink = buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.id, trip.carrierId);
+    const deepLink = trip.shortCode
+      ? buildTripDeepLink(env.TELEGRAM_BOT_USERNAME, trip.shortCode)
+      : `https://t.me/${env.TELEGRAM_BOT_USERNAME}?start=trip_${trip.id}`;
     const text = buildTelegramShareText({
       fromCity: trip.fromCity,
       toCity: trip.toCity,

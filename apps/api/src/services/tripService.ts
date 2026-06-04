@@ -1,4 +1,9 @@
+import { randomBytes } from 'crypto';
 import { prisma } from '../utils/prisma';
+
+export function generateShortCode(): string {
+  return randomBytes(4).toString('hex'); // 8 hex chars, e.g. "a3f2b1c4"
+}
 
 export async function searchTrips(fromCity: string, toCity: string) {
   return prisma.trip.findMany({
@@ -34,8 +39,8 @@ export async function createTrip(input: {
   });
 }
 
-export function buildTripDeepLink(botUsername: string, tripId: string, carrierId: string) {
-  return `https://t.me/${botUsername}?start=trip_${tripId}_carrier_${carrierId}`;
+export function buildTripDeepLink(botUsername: string, shortCode: string): string {
+  return `https://t.me/${botUsername}?start=t_${shortCode}`;
 }
 
 export function buildTelegramShareText(args: {
